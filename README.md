@@ -7,7 +7,7 @@ APA-Net is a deep learning model designed for learning context specific APA usag
 Before running APA-Net, ensure you have Python installed on your system. Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/APA-Net.git
+git clone https://github.com/BaderLab/APA-Net.git
 cd APA-Net
 
 pip install .
