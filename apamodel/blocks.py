@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class ConvBlock(nn.Module):
     """
     Convolutional Block for neural networks.
@@ -10,6 +11,7 @@ class ConvBlock(nn.Module):
         out_channel (int): Number of output channels.
         ...
     """
+
     def __init__(
         self,
         in_channel,
@@ -47,6 +49,7 @@ class FCBlock(nn.Module):
         dropouts (list): Dropout values for layers.
         dropout (bool): Whether to apply dropout.
     """
+
     def __init__(self, layer_dims, dropouts, dropout=False):
         super(FCBlock, self).__init__()
         layers = []
