@@ -1,6 +1,6 @@
 # APA-Net
 
-APA-Net is a deep learning model designed for [brief description of the model's purpose or use case]. This guide covers the steps necessary to set up and run APA-Net.
+APA-Net is a deep learning model designed for learning context specific APA usage. This guide covers the steps necessary to set up and run APA-Net.
 
 ## Installation
 
@@ -9,9 +9,6 @@ Before running APA-Net, ensure you have Python installed on your system. Clone t
 ```bash
 git clone https://github.com/yourusername/APA-Net.git
 cd APA-Net
-
-conda env create -f environments/environment.yml
-conda activate apa-net-env
 
 pip install .
 
