@@ -64,3 +64,36 @@ class FCBlock(nn.Module):
 
     def forward(self, x):
         return self.op(x)
+
+
+class ProcessSelfAttn(nn.Module):
+    """
+    Implements the self-attention mechanism.
+    Attributes
+    ----------
+    nhead : int
+        The number of attention heads.
+        Each head computes a separate attention score for each token.
+    """
+
+    def __init__(
+        self,
+        embed_dim: int,
+        num_layers: int,
+        nhead: int,
+        dim_feedforward: int = 2048,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        self.encoder_layer = nn.TransformerEncoderLayer(
+            embed_dim,
+            nhead,
+            dim_feedforward,
+            dropout,
+            activation="gelu",
+            batch_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(self.encoder_layer, num_layers)
+
+    def forward(self, latent):
+        return self.transformer(latent)

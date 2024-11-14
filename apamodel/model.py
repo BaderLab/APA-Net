@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from blocks import ConvBlock, FCBlock
+from blocks import ConvBlock, FCBlock, ProcessSelfAttn
 import numpy as np
 
-RBP_COUNT = 279
+RBP_COUNT = 327
 FIX_SEQ_LEN = 4000
+
 
 
 class APAData(Dataset):
@@ -19,40 +20,30 @@ class APAData(Dataset):
         device (str): Device to use (e.g., 'cuda' or 'cpu').
     """
 
-    def __init__(self, seqs, df, ct, device):
+    def __init__(self, data, device):
         self.device = device
         self.reg_label = torch.from_numpy(
-            np.array(df[:, 3].tolist(), dtype=np.float32)
+            np.array(data[:, 7].tolist(), dtype=np.float32)
         ).to(device)
-        self.seq_idx = torch.from_numpy(np.array(df[:, 1].tolist(), dtype=np.int32)).to(
+        self.oneH_seqs = torch.from_numpy(np.array(data[:, 6].tolist())).to(
             device
         )
-        self.oneH_seqs = torch.from_numpy(np.array(list(seqs[:, 3]), dtype=np.int8)).to(
+        self.ct_profiles = torch.from_numpy(np.array(data[:, 8].tolist())).to(
             device
         )
-        self.oneH_seq_indexes = torch.from_numpy(
-            np.array(seqs[:, 0], dtype=np.int32)
-        ).to(device)
-        self.celltypes = df[:, 2]
-        self.ct_profiles = ct
+        self.celltype_name = data[:, 1].tolist()
+        self.switch_name = data[:, 5].tolist()
 
     def __len__(self):
         return self.reg_label.shape[0]
 
     def __getitem__(self, idx):
-        seq_idx = self.seq_idx[idx]
-        seq = (
-            self.oneH_seqs[torch.where(self.oneH_seq_indexes == seq_idx)]
-            .squeeze()
-            .type(torch.cuda.FloatTensor)
-        )
+        seq = self.oneH_seqs[idx].type(torch.cuda.FloatTensor)
         reg_label = self.reg_label[idx]
-        celltype_name = self.celltypes[idx]
-        celltype = torch.from_numpy(
-            self.ct_profiles[celltype_name].values.astype(np.float32)
-        ).to(self.device)
-        return (seq, celltype, celltype_name, reg_label)
-
+        celltype_profile = self.ct_profiles[idx].type(torch.cuda.FloatTensor)
+        celltype_name = self.celltype_name[idx]
+        switch_name = self.switch_name[idx]
+        return (seq, reg_label, celltype_profile, celltype_name, switch_name)
 
 class APANET(nn.Module):
     """
@@ -108,6 +99,13 @@ class APANET(nn.Module):
             dropouts=self.config["fc2_dropouts"],
             dropout=True,
         )
+        self.process_self_attn = ProcessSelfAttn(
+            self.config["psa_query_dim"],
+            self.config["psa_num_layers"],
+            self.config["psa_nhead"],
+            self.config["psa_dim_feedforward"],
+            self.config["psa_dropout"]
+        )
 
     def _get_conv1d_out_length(self, l_in, kernel, stride, pool_kernel, pool_stride):
         """Utility method to calculate output length of Conv1D layer."""
@@ -118,10 +116,11 @@ class APANET(nn.Module):
 
     def forward(self, seq, celltype):
         # Convolutional forward
-        x_conv = self.conv_block_1(seq)
-        x = x_conv.permute(2, 0, 1)  # reshape for attention block
-        x, _ = self.attention(x, x, x)
-        x = x.permute(1, 2, 0)  # reshape back
+        x_conv = self.conv_block_1(seq) # batch, 64/128(dim), 80(len)
+        x = x_conv.permute(0, 2, 1)  # reshape for attention block so dim is first
+        # x, _ = self.attention(x, x, x)
+        x = self.process_self_attn(x)
+        x = x.permute(0, 2, 1)  # reshape back
         x = x + x_conv  # add residual connection
         x = torch.flatten(x, 1)  # flatten for FC layers
         x = self.fc1(x)  # FC block 1

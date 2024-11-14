@@ -11,7 +11,7 @@ import wandb
 
 
 def build_dataloaders(
-    device, train_seq, valid_seq, train_data, val_data, batch_size, ct_profiles
+    device, train_data, valid_data, batch_size,
 ):
     """
     Create training and validation data loaders.
@@ -24,21 +24,27 @@ def build_dataloaders(
         Tuple of DataLoader for training and validation datasets.
     """
     train_loader = DataLoader(
-        APAData(train_seq, train_data, ct_profiles, device),
+        APAData(train_data, device),
         batch_size=batch_size,
         shuffle=True,
         drop_last=True,
     )
     valid_loader = DataLoader(
-        APAData(valid_seq, val_data, ct_profiles, device),
+        APAData(valid_data, device),
         batch_size=batch_size,
         shuffle=False,
         drop_last=False,
     )
     return train_loader, valid_loader
 
+def l1_penalty(model, l1_factor):
+    l1_reg = torch.tensor(0.).to(model.device)
+    for param in model.parameters():
+        l1_reg += torch.norm(param, 1)
+    return l1_factor * l1_reg
 
-def train_one_epoch(model, train_loader):
+
+def train_one_epoch(model, train_loader, l1_factor=0.00005):
     """
     Train the model for one epoch.
     Args:
@@ -49,10 +55,13 @@ def train_one_epoch(model, train_loader):
     """
     model.train()
     total_loss, predictions, targets = 0.0, [], []
-    for seq_X, celltype, _, Y in train_loader:
+    for seq_X, Y, celltype, _, _ in train_loader:
         model.optimizer.zero_grad()
         outputs = torch.squeeze(model(seq_X, celltype))
-        loss = torch.sqrt(model.loss_fn(outputs, Y))
+        mse_loss = torch.sqrt(model.loss_fn(outputs, Y))
+        # l1_loss = l1_penalty(model, l1_factor)
+        # loss = mse_loss + l1_loss 
+        loss = mse_loss
         loss.backward()
         model.optimizer.step()
         total_loss += loss.item() * seq_X.size(0)
@@ -77,7 +86,7 @@ def validate_one_epoch(model, valid_loader):
     model.eval()
     total_loss, predictions, targets = 0.0, [], []
     with torch.no_grad():
-        for seq_X, celltype, _, Y in valid_loader:
+        for seq_X, Y, celltype, _, _ in valid_loader:
             outputs = torch.squeeze(model(seq_X, celltype))
             loss = torch.sqrt(model.loss_fn(outputs, Y))
             total_loss += loss.item() * seq_X.size(0)
@@ -92,13 +101,11 @@ def validate_one_epoch(model, valid_loader):
 
 
 def main_train(
-    train_seq,
-    valid_seq,
     train_data,
     val_data,
-    profiles,
     modelfile,
     device,
+    project_name,
     config,
     use_wandb,
 ):
@@ -115,18 +122,15 @@ def main_train(
     use_wandb = args.use_wandb.lower() == "true"
     train_loader, valid_loader = build_dataloaders(
         device,
-        train_seq,
-        valid_seq,
         train_data,
         val_data,
         config["batch_size"],
-        profiles,
     )
     with tqdm(range(config["epochs"]), unit="epoch") as tepochs:
         if use_wandb:
             wandb.login()
             with wandb.init(
-                project=config["project_name"],
+                project= project_name,
                 settings=wandb.Settings(start_method="thread"),
             ):
                 model = APANET(config)
@@ -168,16 +172,7 @@ if __name__ == "__main__":
         "--train_data", type=str, required=True, help="Path to training data file"
     )
     parser.add_argument(
-        "--train_seq", type=str, required=True, help="Path to training sequences file"
-    )
-    parser.add_argument(
         "--valid_data", type=str, required=True, help="Path to validation data file"
-    )
-    parser.add_argument(
-        "--valid_seq", type=str, required=True, help="Path to validation sequences file"
-    )
-    parser.add_argument(
-        "--profiles", type=str, required=True, help="Path to cell type profiles file"
     )
     parser.add_argument(
         "--modelfile", type=str, required=True, help="Path to save the trained model"
@@ -214,10 +209,7 @@ if __name__ == "__main__":
     np.random.seed(7)
 
     train_data = np.load(args.train_data, allow_pickle=True)
-    train_seq = np.load(args.train_seq, allow_pickle=True)
     valid_data = np.load(args.valid_data, allow_pickle=True)
-    valid_seq = np.load(args.valid_seq, allow_pickle=True)
-    profiles = pd.read_csv(args.profiles, index_col=0, sep="\t")
 
     config = {
         "batch_size": args.batch_size,
@@ -227,35 +219,38 @@ if __name__ == "__main__":
         "opt": "Adam",
         "loss": "mse",
         "lr": 2.5e-05,
-        "adam_weight_decay": 0.06,
-        "conv1kc": 128,
+        "adam_weight_decay": 0.09, # 0.06 before
+        "conv1kc": 128, #128, 64
         "conv1ks": 12,
         "conv1st": 1,
-        "pool1ks": 25,
-        "pool1st": 25,
-        "cnvpdrop1": 0.2,
+        "pool1ks": 16,
+        "pool1st": 16,
+        "cnvpdrop1": 0,
         "Matt_heads": 8,
         "Matt_drop": 0.2,
         "fc1_dims": [
-            8192,
+            8192, # 8192, 5120
             4048,
             1024,
             512,
             256,
         ],  # first dimension will be calculated dynamically
-        "fc1_dropouts": [0.3, 0.25, 0.25, 0.2, 0.1],
+        "fc1_dropouts": [0.25, 0.25, 0.25, 0, 0],
         "fc2_dims": [128, 32, 16, 1],  # first dimension will be calculated dynamically
         "fc2_dropouts": [0.2, 0.2, 0, 0],
+        'psa_query_dim': 128, # make sure this is correct
+        'psa_num_layers': 1,
+        'psa_nhead': 1,
+        'psa_dim_feedforward':1024,
+        'psa_dropout': 0 
     }
 
     main_train(
-        train_seq,
-        valid_seq,
         train_data,
         valid_data,
-        profiles,
         args.modelfile,
         args.device,
+        args.project_name,
         config,
         args.use_wandb,
     )
