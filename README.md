@@ -202,7 +202,6 @@ analysis_and_figures/
 ├── model_performance/          # APA-Net model evaluation and performance analysis
 ├── data_processing/            # Data preparation and preprocessing for APA-Net
 ├── comparative_analysis/       # Comparative studies (APA vs DE, correlations)
-├── visualization/              # Figure generation and plotting scripts
 ├── gene_expression/            # Differential gene expression analysis
 ├── pathway_analysis/           # Gene set enrichment and pathway analysis
 ├── preprocessing/              # Single-cell RNA-seq data preprocessing pipeline
