@@ -250,25 +250,19 @@ pip install pandas numpy scipy matplotlib seaborn scikit-learn statsmodels
 - **apa_correlation_across_celltypes.ipynb**: Cross-cell-type APA correlation analysis
 - **rbp_co_occurance_dissimilarity.ipynb**: RNA-binding protein co-occurrence analysis
 
-#### 4. Visualization (`visualization/`)
-- **maaper_volcanos_barplots_figure6.ipynb**: Creates volcano plots and bar plots for Figure 6
-  - APA usage changes across conditions
-  - Cell-type-specific visualizations
-  - Statistical significance visualization
-
-#### 5. Gene Expression (`gene_expression/`)
+#### 4. Gene Expression (`gene_expression/`)
 - **DEG_ALS_genes.R**: Analysis of ALS-associated gene expression
 - **DEG_MAST_analysis.R**: MAST-based differential expression analysis
 - **DEG_pathway_analysis.R**: Pathway enrichment analysis for DEGs
 - **DEG_visualization.R**: Visualization of differential expression results
 
-#### 6. Pathway Analysis (`pathway_analysis/`)
+#### 5. Pathway Analysis (`pathway_analysis/`)
 - **APA_pathway_analysis.R**: Gene set enrichment analysis for APA-affected genes
   - GO term enrichment
   - Reactome pathway analysis
   - Custom gene set analysis
 
-#### 7. Preprocessing (`preprocessing/`)
+#### 6. Preprocessing (`preprocessing/`)
 - **processing_annotation/**: Single-cell RNA-seq processing pipeline
   - `01_snRNA_cellranger_preprocess.sh`: Cell Ranger preprocessing
   - `02_snRNA_process_QC.R`: Quality control and filtering
@@ -339,7 +333,7 @@ Please ensure you have access to the appropriate datasets before running the ana
 
 If you use this analysis pipeline, please cite our paper:
 ```
-[Paper citation to be added upon publication]
+[[Paper citation to be added upon publication]](https://www.biorxiv.org/content/10.1101/2023.12.22.573083v2)
 ```
 
 For questions about the analysis pipeline, please open an issue in the GitHub repository.
